@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Check-In</title>
+  <style>body { font-family: sans-serif; padding: 20px; text-align: center; }</style>
+</head>
+<body>
+  <h2>Meeting Check-In</h2>
+  <input type="text" id="name" placeholder="Enter your name"><br><br>
+  <button onclick="getLocation()">Check In</button>
+  <p id="status"></p>
+
+  <script>
+    const meetingLat = 40.952181;
+    const meetingLng = 29.139799;
+    const allowedRadius = 100;
+    const endpoint = "https://script.google.com/macros/s/AKfycbw_uDCV4u7nm12dPSDcPx2f2mPvvLzEhXYFE-aGsKuGQILXwPaR4jC0BUkzBnfdWiLKUg/exec";
+
+    function getLocation() {
+      document.getElementById("status").innerText = "Getting location...";
+      if (!document.getElementById("name").value.trim()) {
+        document.getElementById("status").innerText = "Please enter your name.";
+        return;
+      }
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(success, error);
+      } else {
+        document.getElementById("status").innerText = "Geolocation not supported.";
+      }
+    }
+
+    function success(pos) {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      const distance = getDistance(lat, lng, meetingLat, meetingLng);
+      const status = (distance <= allowedRadius) ? "Present" : "Too far";
+
+      fetch(endpoint, {
+        method: "POST",
+        body: JSON.stringify({
+          name: document.getElementById("name").value,
+          latitude: lat,
+          longitude: lng,
+          distance: distance.toFixed(2),
+          status: status
+        }),
+        headers: { "Content-Type": "application/json" }
+      }).then(() => {
+        document.getElementById("status").innerText =
+          (status === "Present") ? "Check-in successful!" : "You are not close enough to the meeting.";
+      });
+    }
+
+    function error() {
+      document.getElementById("status").innerText = "Location access denied.";
+    }
+
+    function getDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const toRad = x => x * Math.PI / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+  </script>
+</body>
+</html>
