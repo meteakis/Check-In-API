@@ -1,76 +1,97 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Check-In</title>
-  <style>body { font-family: sans-serif; padding: 20px; text-align: center; }</style>
+  <title>Konum Tabanlı Katılım</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+      text-align: center;
+    }
+    #checkin {
+      display: none;
+      margin-top: 1em;
+    }
+    input, button {
+      padding: 0.5em;
+      margin: 0.5em;
+    }
+  </style>
 </head>
 <body>
-  <h2>Meeting Check-In</h2>
-  <input type="text" id="name" placeholder="Enter your name"><br><br>
-  <button onclick="getLocation()">Check In</button>
-  <p id="status"></p>
+  <h2>Toplantı Katılım Formu</h2>
+  <p id="status">Konum alınıyor...</p>
+
+  <div id="checkin">
+    <input type="text" id="name" placeholder="Adınızı girin">
+    <button onclick="submitForm()">Gönder</button>
+  </div>
 
   <script>
-    const meetingLat = 40.952181;
-    const meetingLng = 29.139799;
-    const allowedRadius = 100;
-    const endpoint = "https://script.google.com/macros/s/AKfycbw_uDCV4u7nm12dPSDcPx2f2mPvvLzEhXYFE-aGsKuGQILXwPaR4jC0BUkzBnfdWiLKUg/exec";
+    const targetLat = 40.952181;
+    const targetLng = 29.139799;
+    const radius = 100; // meters
+    const scriptURL = "YOUR_APPS_SCRIPT_URL_HERE"; // <-- Replace this
 
-    function getLocation() {
-      document.getElementById("status").innerText = "Getting location...";
-      if (!document.getElementById("name").value.trim()) {
-        document.getElementById("status").innerText = "Please enter your name.";
+    function getDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371000; // Earth's radius in meters
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2)**2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2)**2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    function success(position) {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const distance = getDistance(lat, lng, targetLat, targetLng);
+
+      if (distance <= radius) {
+        document.getElementById("status").innerText = `Konum doğrulandı (${Math.round(distance)}m içinde). Katılım yapabilirsiniz.`;
+        document.getElementById("checkin").style.display = "block";
+      } else {
+        document.getElementById("status").innerText = `Bu sayfa yalnızca etkinlik konumunda çalışır. Şu an ${Math.round(distance)}m uzaktasınız.`;
+      }
+    }
+
+    function error(err) {
+      document.getElementById("status").innerText = "Konum alınamadı: " + err.message;
+    }
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(success, error, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      });
+    } else {
+      document.getElementById("status").innerText = "Tarayıcınız konum servisini desteklemiyor.";
+    }
+
+    function submitForm() {
+      const name = document.getElementById("name").value.trim();
+      if (!name) {
+        alert("Lütfen adınızı girin.");
         return;
       }
 
-     if (navigator.geolocation) {
-  navigator.geolocation.getCurrentPosition(success, error, {
-    enableHighAccuracy: true,
-    timeout: 10000, // Try for up to 10 seconds
-    maximumAge: 0    // Don't use a cached location
-  });
-} else {
-  document.getElementById("status").innerText = "Tarayıcınız konum servisini desteklemiyor.";
-}
-
-function error(err) {
-  document.getElementById("status").innerText = "Konum alınamadı: " + err.message;
-}
-
-    function success(pos) {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-      const distance = getDistance(lat, lng, meetingLat, meetingLng);
-      const status = (distance <= allowedRadius) ? "Present" : "Too far";
-
-      fetch(endpoint, {
-        method: "POST",
-        body: JSON.stringify({
-          name: document.getElementById("name").value,
-          latitude: lat,
-          longitude: lng,
-          distance: distance.toFixed(2),
-          status: status
-        }),
-        headers: { "Content-Type": "application/json" }
-      }).then(() => {
-        document.getElementById("status").innerText =
-          (status === "Present") ? "Check-in successful!" : "You are not close enough to the meeting.";
+      fetch(scriptURL, {
+        method: 'POST',
+        body: new URLSearchParams({ name })
+      })
+      .then(response => {
+        if (response.ok) {
+          document.getElementById("status").innerText = "Katılım kaydedildi. Teşekkürler!";
+          document.getElementById("checkin").style.display = "none";
+        } else {
+          document.getElementById("status").innerText = "Gönderim başarısız oldu.";
+        }
+      })
+      .catch(error => {
+        document.getElementById("status").innerText = "Sunucu hatası: " + error.message;
       });
-    }
-
-    function error() {
-      document.getElementById("status").innerText = "Location access denied.";
-    }
-
-    function getDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371000;
-      const toRad = x => x * Math.PI / 180;
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
     }
   </script>
 </body>
