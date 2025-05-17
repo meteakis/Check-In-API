@@ -23,12 +23,19 @@
         return;
       }
 
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(success, error);
-      } else {
-        document.getElementById("status").innerText = "Geolocation not supported.";
-      }
-    }
+     if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(success, error, {
+    enableHighAccuracy: true,
+    timeout: 10000, // Try for up to 10 seconds
+    maximumAge: 0    // Don't use a cached location
+  });
+} else {
+  document.getElementById("status").innerText = "Tarayıcınız konum servisini desteklemiyor.";
+}
+
+function error(err) {
+  document.getElementById("status").innerText = "Konum alınamadı: " + err.message;
+}
 
     function success(pos) {
       const lat = pos.coords.latitude;
