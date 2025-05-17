@@ -32,27 +32,33 @@
     const targetLat = 40.952181;
     const targetLng = 29.139799;
     const radius = 100; // meters
-    const scriptURL = "YOUR_APPS_SCRIPT_URL_HERE"; // <-- Replace this
+    const scriptURL = "https://script.google.com/macros/s/AKfycbw_uDCV4u7nm12dPSDcPx2f2mPvvLzEhXYFE-aGsKuGQILXwPaR4jC0BUkzBnfdWiLKUg/exec";
+
+    let currentLat = null;
+    let currentLng = null;
+    let currentDistance = null;
 
     function getDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371000; // Earth's radius in meters
+      const R = 6371000;
       const dLat = (lat2 - lat1) * Math.PI / 180;
       const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a = Math.sin(dLat/2)**2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2)**2;
+      const a = Math.sin(dLat / 2) ** 2 +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) ** 2;
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     }
 
     function success(position) {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-      const distance = getDistance(lat, lng, targetLat, targetLng);
+      currentLat = position.coords.latitude;
+      currentLng = position.coords.longitude;
+      currentDistance = getDistance(currentLat, currentLng, targetLat, targetLng);
 
-      if (distance <= radius) {
-        document.getElementById("status").innerText = `Konum doğrulandı (${Math.round(distance)}m içinde). Katılım yapabilirsiniz.`;
+      if (currentDistance <= radius) {
+        document.getElementById("status").innerText = `Konum doğrulandı (${Math.round(currentDistance)}m içinde). Katılım yapabilirsiniz.`;
         document.getElementById("checkin").style.display = "block";
       } else {
-        document.getElementById("status").innerText = `Bu sayfa yalnızca etkinlik konumunda çalışır. Şu an ${Math.round(distance)}m uzaktasınız.`;
+        document.getElementById("status").innerText = `Bu sayfa yalnızca etkinlik konumunda çalışır. Şu an ${Math.round(currentDistance)}m uzaktasınız.`;
       }
     }
 
@@ -77,9 +83,20 @@
         return;
       }
 
+      const data = {
+        name: name,
+        latitude: currentLat,
+        longitude: currentLng,
+        distance: currentDistance,
+        status: currentDistance <= radius ? "inside" : "outside"
+      };
+
       fetch(scriptURL, {
         method: 'POST',
-        body: new URLSearchParams({ name })
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
       })
       .then(response => {
         if (response.ok) {
